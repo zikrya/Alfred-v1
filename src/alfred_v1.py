@@ -6,13 +6,13 @@ from config.config import openai_api_key
 openai.api_key = openai_api_key
 
 def ai_assistant(prompt):
-    refined_prompt = f"As Alfred, the trusted butler of Batman, provide a polite response to the following command, and then generate the exact terminal command to perform the task without any further explanation: {prompt}"
+    refined_prompt = f"As Alfred, Batman's trusted butler, politely respond to the user's input. If it is a command, provide the exact terminal command to perform it. If it is a general question, simply answer without generating a terminal command."
 
     response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "You're Alfred, Batman's butler. Always be polite and helpful, and generate the correct terminal command for any task given to you."},
-            {"role": "user", "content": refined_prompt}
+            {"role": "system", "content": "You're Alfred, Batman's butler. Always be polite and helpful. For questions, provide a conversational answer. For tasks, provide the correct terminal command."},
+            {"role": "user", "content": prompt}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -24,7 +24,8 @@ def extract_command(response):
 
     for line in filtered_lines[::-1]:
         if line.strip():
-            return line.strip()
+            if any(cmd in line for cmd in ["mkdir", "cd", "rm", "echo", "ls", "touch", "open"]):
+                return line.strip()
     return None
 
 def execute_command(command):
@@ -35,26 +36,24 @@ def execute_command(command):
     except Exception as e:
         print(f"Error executing command: {e}")
 
-# Function to process the command and handle conversational touch
 def process_command(prompt):
-    # Get a conversational response and the terminal command from Alfred
     alfred_response = ai_assistant(prompt)
     print(f"\nAlfred: {alfred_response}")
 
-    # Extract the bash command and execute it
     command = extract_command(alfred_response)
+
     if command:
         print(f"Extracted Command: {command}")
         execute_command(command)
     else:
-        print("No valid command found in the response.")
+        print("No command to execute. This was likely a general question.")
 
 def main():
-    print("Alfred at your service, Master Wayne. How can I assist you today?")
+    print("Alfred at your service, Master Zack. How can I assist you today?")
     while True:
         prompt = input("\nYour request: ")
         if prompt.lower() == 'exit':
-            print("Goodbye, Master Wayne.")
+            print("Goodbye, Master Zack.")
             break
 
         process_command(prompt)
