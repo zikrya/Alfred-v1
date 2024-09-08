@@ -1,6 +1,6 @@
 import openai
 import subprocess
-import os
+from src.openai_tts import speak_response
 from config.config import openai_api_key
 
 openai.api_key = openai_api_key
@@ -48,12 +48,14 @@ def process_command(prompt):
     else:
         print("No command to execute. This was likely a general question.")
 
+    speak_response(alfred_response)
+
 def main():
-    print("Alfred at your service, Master Zack. How can I assist you today?")
+    print("Alfred at your service, Master Wayne. How can I assist you today?")
     while True:
         prompt = input("\nYour request: ")
         if prompt.lower() == 'exit':
-            print("Goodbye, Master Zack.")
+            print("Goodbye, Master Wayne.")
             break
 
         process_command(prompt)
