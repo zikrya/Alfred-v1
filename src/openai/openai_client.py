@@ -57,7 +57,8 @@ class OpenAIClient:
             functions=functions,
             function_call="auto"
         )
-        print(f"Full OpenAI Response: {response}")
+
+
         message = response.choices[0].message
 
         if message.function_call:
@@ -69,7 +70,7 @@ class OpenAIClient:
             elif function_name == "create_file":
                 return create_file(arguments["file_name"], arguments.get("path", "."))
 
-        if "content" in message and message["content"]:
-            return message["content"]
+        if hasattr(message, "content") and message.content:
+            return message.content
 
-        return "Sorry, I couldn't understand that."
+        return "I couldn't quite catch that, Master Wayne. Could you rephrase?"

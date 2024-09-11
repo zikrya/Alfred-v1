@@ -9,6 +9,5 @@ class IntentRecognition:
         Passes the prompt to OpenAI and receives either a conversational response or a function call.
         """
         openai_response = self.openai_client.ai_assistant(prompt)
-        print(f"DEBUG: OpenAI Response: {openai_response}")
 
         return openai_response
