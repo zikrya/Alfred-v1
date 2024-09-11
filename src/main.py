@@ -12,13 +12,9 @@ def main():
             print("Goodbye, Master Wayne.")
             break
 
-        # Recognize intent and generate both action and response
-        intent, openai_response = intent_recognition.recognize_intent(prompt)  # Unpack both intent and response
-        action = intent_recognition.generate_action(intent, prompt)
-
-        print(f"\nAlfred: {action}")
+        # Get the response directly (no need to unpack intent and response)
+        openai_response = intent_recognition.recognize_intent(prompt)
+        print(f"\nAlfred: {openai_response}")
 
 if __name__ == "__main__":
     main()
-
-
