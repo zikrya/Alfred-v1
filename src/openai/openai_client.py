@@ -1,6 +1,6 @@
 import openai
 from config.config import openai_api_key
-from src.system_commands.folder_file_operations import create_folder, create_file
+from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, read_file_contents
 import json
 
 class OpenAIClient:
@@ -14,13 +14,13 @@ class OpenAIClient:
 
     def ai_assistant(self, prompt):
         refined_prompt = (
-            f"As Alfred, Batman's trusted butler, whose been given to Zack now, you must always respond politely and respectfully to the user's input. "
-            "For commands that involve system actions (like creating, deleting, or searching for files), interpret the command clearly and provide the required action. "
+            f"As Alfred, Batman's trusted butler, you must always respond politely and respectfully to the user's input. "
+            "For commands that involve system actions (like creating, deleting, searching for files or folders), interpret the command clearly and provide the required action. "
             "For general questions or non-actionable requests, provide helpful and conversational responses. "
             "Always maintain the tone of Alfred—polite, helpful, and slightly witty."
         )
 
-        # Define the available functions for function calling
+        # Define available functions for function calling
         functions = [
             {
                 "name": "create_folder",
@@ -35,22 +35,56 @@ class OpenAIClient:
                 }
             },
             {
-                "name": "create_file",
-                "description": "Create a file at the given location.",
+                "name": "list_files_and_folders",
+                "description": "List all files and folders in a specified directory.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "file_name": {"type": "string", "description": "The name of the file to create."},
-                        "path": {"type": "string", "description": "The path where the file should be created."}
+                        "path": {"type": "string", "description": "The path to list the contents of."}
                     },
-                    "required": ["file_name"]
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "search_for_file",
+                "description": "Search for a file in the system.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "The name of the file to search for."},
+                        "search_path": {"type": "string", "description": "The path to start searching in."}
+                    },
+                    "required": ["filename"]
+                }
+            },
+            {
+                "name": "search_for_folder",
+                "description": "Search for a folder in the system.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "foldername": {"type": "string", "description": "The name of the folder to search for."},
+                        "search_path": {"type": "string", "description": "The path to start searching in."}
+                    },
+                    "required": ["foldername"]
+                }
+            },
+            {
+                "name": "read_file_contents",
+                "description": "Read the contents of a file.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "filepath": {"type": "string", "description": "The full path of the file to read."}
+                    },
+                    "required": ["filepath"]
                 }
             }
         ]
 
         # Send the request to OpenAI with function calling
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": refined_prompt},
                 {"role": "user", "content": prompt}
@@ -59,31 +93,24 @@ class OpenAIClient:
             function_call="auto"
         )
 
-        # Get the message object from the response
         message = response.choices[0].message
 
-        # Check if the response includes a function call
         if message.function_call:
-            # Dynamic response before the action is performed
-            pre_action_response = "I'll get right on that, Master Zack."
-
             function_name = message.function_call.name
             arguments = json.loads(message.function_call.arguments)
 
-            # Handle function calling logic
             if function_name == "create_folder":
-                action_result = create_folder(arguments["folder_name"], arguments.get("path", "."))
-                # Dynamic response after the action is completed
-                post_action_response = f"The folder '{arguments['folder_name']}' has been successfully created, sir."
-                return f"{pre_action_response}\n{post_action_response}"
-            elif function_name == "create_file":
-                action_result = create_file(arguments["file_name"], arguments.get("path", "."))
-                post_action_response = f"The file '{arguments['file_name']}' has been created, sir."
-                return f"{pre_action_response}\n{post_action_response}"
+                return create_folder(arguments["folder_name"], arguments.get("path", "."))
+            elif function_name == "list_files_and_folders":
+                return list_files_and_folders(arguments.get("path", "."))
+            elif function_name == "search_for_file":
+                return search_for_file(arguments["filename"], arguments.get("search_path", "."))
+            elif function_name == "search_for_folder":
+                return search_for_folder(arguments["foldername"])
+            elif function_name == "read_file_contents":
+                return read_file_contents(arguments["filepath"])
 
-        # Return the regular conversational response if available
         if hasattr(message, "content") and message.content:
             return message.content
 
-        # Fallback only if neither function nor content is found
         return "I couldn't quite catch that, Master Zack. Could you rephrase?"
