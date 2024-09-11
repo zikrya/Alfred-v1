@@ -20,17 +20,15 @@ def create_folder(folder_name, path="."):
     except Exception as e:
         return f"Error creating folder '{folder_name}': {e}"
 
-
 def create_file(file_name, path="."):
     """Create a file at the specified path"""
-    full_path = os.path.join(path, file_name)
+    full_path = os.path.join(resolve_path(path), file_name)
     try:
         with open(full_path, 'w') as file:
             file.write("")
         return f"File '{file_name}' created at {full_path}."
     except Exception as e:
         return f"Error creating file '{file_name}': {e}"
-
 
 def list_files_and_folders(path="."):
     """List all files and folders in the specified directory."""
@@ -39,17 +37,6 @@ def list_files_and_folders(path="."):
     except Exception as e:
         return f"Error accessing the directory: {e}"
 
-def search_for_file(filename, search_path="/"):
-    """Recursively search for a file in the specified directory."""
-    result = []
-    for root, dirs, files in os.walk(search_path):
-        if filename in files:
-            result.append(os.path.join(root, filename))
-    if result:
-        return result
-    else:
-        return f"File '{filename}' not found."
-
 def read_file_contents(filepath):
     """Read and return the contents of the specified file."""
     try:
@@ -57,7 +44,6 @@ def read_file_contents(filepath):
             return file.read()
     except Exception as e:
         return f"Error reading file '{filepath}': {e}"
-
 
 def is_hidden_or_system_folder(path):
     """Check if a folder is hidden or part of a system directory."""
@@ -108,3 +94,50 @@ def search_for_folder(foldername):
 
     except Exception as e:
         return f"Error occurred: {e}"
+
+def search_for_file(filename, search_path="."):
+    """Efficiently search for a file through common user-accessible directories or a given search path."""
+    search_paths = [
+        os.path.join(os.path.expanduser("~"), "Desktop"),
+        os.path.join(os.path.expanduser("~"), "Documents"),
+        os.path.join(os.path.expanduser("~"), "Downloads"),
+        os.path.join(os.path.expanduser("~"), "Pictures"),
+        os.path.join(os.path.expanduser("~"), "Music"),
+        os.path.join(os.path.expanduser("~"), "Movies"),
+    ]
+
+    if search_path != ".":
+        search_paths = [search_path]
+
+    result = []
+    queue = deque(search_paths)
+
+    try:
+        while queue:
+            current_path = queue.popleft()
+
+            # Skip hidden or system directories
+            if is_hidden_or_system_folder(current_path) or not has_access(current_path):
+                continue
+
+            try:
+                with os.scandir(current_path) as it:
+                    for entry in it:
+                        if entry.is_file(follow_symlinks=False):
+                            if entry.name == filename:
+                                result.append(os.path.join(current_path, entry.name))
+                        elif entry.is_dir(follow_symlinks=False):
+                            queue.append(entry.path)
+            except PermissionError:
+                continue
+            except Exception as e:
+                continue
+
+        if result:
+            return f"File '{filename}' found at: {result[0]}"
+        else:
+            return f"File '{filename}' not found."
+
+    except Exception as e:
+        return f"Error occurred: {e}"
+
