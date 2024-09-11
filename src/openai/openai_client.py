@@ -14,7 +14,7 @@ class OpenAIClient:
 
     def ai_assistant(self, prompt):
         refined_prompt = (
-            f"As Alfred, Batman's trusted butler, you must always respond politely and respectfully to the user's input. "
+            f"As Alfred, Batman's trusted butler, whose been given to Zack now, you must always respond politely and respectfully to the user's input. "
             "For commands that involve system actions (like creating, deleting, or searching for files), interpret the command clearly and provide the required action. "
             "For general questions or non-actionable requests, provide helpful and conversational responses. "
             "Always maintain the tone of Alfred—polite, helpful, and slightly witty."
@@ -48,6 +48,7 @@ class OpenAIClient:
             }
         ]
 
+        # Send the request to OpenAI with function calling
         response = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -58,19 +59,31 @@ class OpenAIClient:
             function_call="auto"
         )
 
-
+        # Get the message object from the response
         message = response.choices[0].message
 
+        # Check if the response includes a function call
         if message.function_call:
+            # Dynamic response before the action is performed
+            pre_action_response = "I'll get right on that, Master Zack."
+
             function_name = message.function_call.name
             arguments = json.loads(message.function_call.arguments)
 
+            # Handle function calling logic
             if function_name == "create_folder":
-                return create_folder(arguments["folder_name"], arguments.get("path", "."))
+                action_result = create_folder(arguments["folder_name"], arguments.get("path", "."))
+                # Dynamic response after the action is completed
+                post_action_response = f"The folder '{arguments['folder_name']}' has been successfully created, sir."
+                return f"{pre_action_response}\n{post_action_response}"
             elif function_name == "create_file":
-                return create_file(arguments["file_name"], arguments.get("path", "."))
+                action_result = create_file(arguments["file_name"], arguments.get("path", "."))
+                post_action_response = f"The file '{arguments['file_name']}' has been created, sir."
+                return f"{pre_action_response}\n{post_action_response}"
 
+        # Return the regular conversational response if available
         if hasattr(message, "content") and message.content:
             return message.content
 
-        return "I couldn't quite catch that, Master Wayne. Could you rephrase?"
+        # Fallback only if neither function nor content is found
+        return "I couldn't quite catch that, Master Zack. Could you rephrase?"
