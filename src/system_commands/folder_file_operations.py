@@ -79,7 +79,7 @@ def summarize_content(content):
     """Summarize the file content using OpenAI API."""
     try:
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "Summarize this content briefly."},
                 {"role": "user", "content": content}
