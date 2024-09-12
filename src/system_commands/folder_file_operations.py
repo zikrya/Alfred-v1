@@ -1,5 +1,5 @@
 import os
-from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def resolve_path(path):
     """Resolve the user-specified path or use default system paths for known directories."""
@@ -7,12 +7,13 @@ def resolve_path(path):
         return os.path.join(os.path.expanduser("~"), "Desktop")
     elif path.lower() == "documents":
         return os.path.join(os.path.expanduser("~"), "Documents")
+    elif path.lower() == "downloads":
+        return os.path.join(os.path.expanduser("~"), "Downloads")
     else:
         return os.path.expanduser(path)
 
 def create_folder(folder_name, path="."):
     """Create a folder at the specified path."""
-    # Resolve the path
     full_path = os.path.join(resolve_path(path), folder_name)
     try:
         os.makedirs(full_path, exist_ok=True)
@@ -21,7 +22,7 @@ def create_folder(folder_name, path="."):
         return f"Error creating folder '{folder_name}': {e}"
 
 def create_file(file_name, path="."):
-    """Create a file at the specified path"""
+    """Create a file at the specified path."""
     full_path = os.path.join(resolve_path(path), file_name)
     try:
         with open(full_path, 'w') as file:
@@ -45,99 +46,61 @@ def read_file_contents(filepath):
     except Exception as e:
         return f"Error reading file '{filepath}': {e}"
 
-def is_hidden_or_system_folder(path):
-    """Check if a folder is hidden or part of a system directory."""
-    return any(part.startswith('.') for part in path.split(os.sep))
-
-def has_access(path):
-    """Check if the current user has access permissions to the given path."""
-    return os.access(path, os.R_OK | os.X_OK)
-
-def search_for_folder(foldername):
-    """Efficiently search for a folder through common user-accessible directories."""
-    search_paths = [
-        os.path.join(os.path.expanduser("~"), "Desktop"),
-        os.path.join(os.path.expanduser("~"), "Documents"),
-        os.path.join(os.path.expanduser("~"), "Downloads"),
-        os.path.join(os.path.expanduser("~"), "Pictures"),
-        os.path.join(os.path.expanduser("~"), "Music"),
-        os.path.join(os.path.expanduser("~"), "Movies"),
-    ]
-
-    result = []
-    queue = deque(search_paths)
-
+def write_to_file(file_name, content, path=".", mode="overwrite"):
+    """Write or append content to a file."""
+    full_path = os.path.join(resolve_path(path), file_name)
+    write_mode = "a" if mode == "append" else "w"
     try:
-        while queue:
-            current_path = queue.popleft()
-
-            # Skip hidden or system directories
-            if is_hidden_or_system_folder(current_path) or not has_access(current_path):
-                continue
-
-            try:
-                with os.scandir(current_path) as it:
-                    for entry in it:
-                        if entry.is_dir(follow_symlinks=False):
-                            if entry.name == foldername:
-                                result.append(os.path.join(current_path, entry.name))
-                            queue.append(entry.path)
-            except PermissionError:
-                continue
-            except Exception as e:
-                continue
-
-        if result:
-            return f"Folder '{foldername}' found at: {result[0]}"
-        else:
-            return f"Folder '{foldername}' not found."
-
+        with open(full_path, write_mode) as file:
+            file.write(content + "\n")
+        return f"Content written to '{full_path}' successfully."
     except Exception as e:
-        return f"Error occurred: {e}"
+        return f"Error writing to file '{full_path}': {e}"
 
-def search_for_file(filename, search_path="."):
-    """Efficiently search for a file through common user-accessible directories or a given search path."""
-    search_paths = [
-        os.path.join(os.path.expanduser("~"), "Desktop"),
-        os.path.join(os.path.expanduser("~"), "Documents"),
-        os.path.join(os.path.expanduser("~"), "Downloads"),
-        os.path.join(os.path.expanduser("~"), "Pictures"),
-        os.path.join(os.path.expanduser("~"), "Music"),
-        os.path.join(os.path.expanduser("~"), "Movies"),
-    ]
-
-    if search_path != ".":
-        search_paths = [search_path]
-
-    result = []
-    queue = deque(search_paths)
-
+# New optimized search functions using ThreadPoolExecutor for parallel search
+def search_target_scandir(path, target_name):
+    """Scan a directory for a file or folder, and return the path if found."""
     try:
-        while queue:
-            current_path = queue.popleft()
+        with os.scandir(path) as entries:
+            subdirs = []
+            for entry in entries:
+                try:
+                    # Check if entry is a file or directory and matches the target
+                    if (entry.is_file() or entry.is_dir()) and entry.name == target_name:
+                        return entry.path  # Target found, return its path
+                    elif entry.is_dir(follow_symlinks=False):
+                        subdirs.append(entry.path)
+                except (PermissionError, OSError):
+                    continue  # Skip directories with permission issues
+            return subdirs
+    except (PermissionError, OSError):
+        return []
 
-            # Skip hidden or system directories
-            if is_hidden_or_system_folder(current_path) or not has_access(current_path):
-                continue
+def search_target_parallel(root_directory, target_name, max_workers=8):
+    """Search for the target file or folder in parallel."""
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(search_target_scandir, root_directory, target_name)]
+        found_target = None
+        while futures:
+            future = futures.pop(0)
+            subdirs = future.result()
 
-            try:
-                with os.scandir(current_path) as it:
-                    for entry in it:
-                        if entry.is_file(follow_symlinks=False):
-                            if entry.name == filename:
-                                result.append(os.path.join(current_path, entry.name))
-                        elif entry.is_dir(follow_symlinks=False):
-                            queue.append(entry.path)
-            except PermissionError:
-                continue
-            except Exception as e:
-                continue
+            if isinstance(subdirs, str):  # Target found
+                found_target = subdirs
+                break
+            else:
+                for subdir in subdirs:
+                    futures.append(executor.submit(search_target_scandir, subdir, target_name))
 
-        if result:
-            return f"File '{filename}' found at: {result[0]}"
+        if found_target:
+            return f"Target found: {found_target}"
         else:
-            return f"File '{filename}' not found."
+            return f"Target '{target_name}' not found."
 
-    except Exception as e:
-        return f"Error occurred: {e}"
+def search_for_file(filename, search_path="/"):
+    """Search for a file in the given path using parallel processing."""
+    return search_target_parallel(search_path, filename)
 
+def search_for_folder(foldername, search_path="/"):
+    """Search for a folder in the given path using parallel processing."""
+    return search_target_parallel(search_path, foldername)

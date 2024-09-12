@@ -1,6 +1,6 @@
 import openai
 from config.config import openai_api_key
-from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, read_file_contents
+from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, read_file_contents, write_to_file
 import json
 
 class OpenAIClient:
@@ -35,14 +35,29 @@ class OpenAIClient:
                 }
             },
             {
-                "name": "list_files_and_folders",
-                "description": "List all files and folders in a specified directory.",
+                "name": "create_file",
+                "description": "Create a file at the given location.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "path": {"type": "string", "description": "The path to list the contents of."}
+                        "file_name": {"type": "string", "description": "The name of the file to create."},
+                        "path": {"type": "string", "description": "The path where the file should be created."}
                     },
-                    "required": ["path"]
+                    "required": ["file_name"]
+                }
+            },
+            {
+                "name": "write_to_file",
+                "description": "Write content to a file at the given location.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_name": {"type": "string", "description": "The name of the file."},
+                        "content": {"type": "string", "description": "The content to write to the file."},
+                        "path": {"type": "string", "description": "The path where the file is located."},
+                        "mode": {"type": "string", "description": "Mode of writing: overwrite or append."}
+                    },
+                    "required": ["file_name", "content"]
                 }
             },
             {
@@ -84,7 +99,7 @@ class OpenAIClient:
 
         # Send the request to OpenAI with function calling
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": refined_prompt},
                 {"role": "user", "content": prompt}
@@ -101,12 +116,16 @@ class OpenAIClient:
 
             if function_name == "create_folder":
                 return create_folder(arguments["folder_name"], arguments.get("path", "."))
+            elif function_name == "create_file":
+                return create_file(arguments["file_name"], arguments.get("path", "."))
+            elif function_name == "write_to_file":
+                return write_to_file(arguments["file_name"], arguments["content"], arguments.get("path", "."), arguments.get("mode", "overwrite"))
             elif function_name == "list_files_and_folders":
                 return list_files_and_folders(arguments.get("path", "."))
             elif function_name == "search_for_file":
-                return search_for_file(arguments["filename"], arguments.get("search_path", "."))
+                return search_for_file(arguments["filename"], arguments.get("search_path", "/"))
             elif function_name == "search_for_folder":
-                return search_for_folder(arguments["foldername"])
+                return search_for_folder(arguments["foldername"], arguments.get("search_path", "/"))
             elif function_name == "read_file_contents":
                 return read_file_contents(arguments["filepath"])
 
