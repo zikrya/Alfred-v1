@@ -46,16 +46,6 @@ def read_file_contents(filepath):
     except Exception as e:
         return f"Error reading file '{filepath}': {e}"
 
-def write_to_file(file_name, content, path=".", mode="overwrite"):
-    """Write or append content to a file."""
-    full_path = os.path.join(resolve_path(path), file_name)
-    write_mode = "a" if mode == "append" else "w"
-    try:
-        with open(full_path, write_mode) as file:
-            file.write(content + "\n")
-        return f"Content written to '{full_path}' successfully."
-    except Exception as e:
-        return f"Error writing to file '{full_path}': {e}"
 
 # New optimized search functions using ThreadPoolExecutor for parallel search
 def search_target_scandir(path, target_name):
@@ -104,3 +94,21 @@ def search_for_file(filename, search_path="/"):
 def search_for_folder(foldername, search_path="/"):
     """Search for a folder in the given path using parallel processing."""
     return search_target_parallel(search_path, foldername)
+
+def append_to_file(file_path, content):
+    """Append content to an existing file."""
+    try:
+        with open(file_path, 'a') as file:
+            file.write(content + "\n")
+        return f"Content appended to {file_path} successfully."
+    except Exception as e:
+        return f"Error appending to file '{file_path}': {e}"
+
+def search_and_append_to_file(file_name, content, search_path="/"):
+    """Search for a file and append content to it."""
+    file_path = search_for_file(file_name, search_path)
+
+    if isinstance(file_path, str) and "found" in file_path:
+        return append_to_file(file_path.split(": ")[1], content)
+    else:
+        return f"File '{file_name}' not found in the search path."
