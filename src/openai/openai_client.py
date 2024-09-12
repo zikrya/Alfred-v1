@@ -1,6 +1,15 @@
 import openai
 from config.config import openai_api_key
-from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, display_and_summarize_file_content, search_and_append_to_file
+from src.system_commands.folder_file_operations import (
+    create_folder,
+    create_file,
+    list_files_and_folders,
+    search_for_file,
+    search_for_folder,
+    display_and_summarize_file_content,
+    search_and_append_to_file,
+    open_file_or_folder
+)
 import json
 
 class OpenAIClient:
@@ -20,7 +29,6 @@ class OpenAIClient:
             "Always maintain the tone of Alfred—polite, helpful, and slightly witty."
         )
 
-        # Define available functions for function calling
         functions = [
             {
                 "name": "create_folder",
@@ -94,6 +102,18 @@ class OpenAIClient:
                     },
                     "required": ["file_name", "content"]
                 }
+            },
+            {
+                "name": "open_file_or_folder",
+                "description": "Search for a file or folder and open it using the default system application.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_name": {"type": "string", "description": "The name of the file or folder to open."},
+                        "search_path": {"type": "string", "description": "The path to start searching in."}
+                    },
+                    "required": ["target_name"]
+                }
             }
         ]
 
@@ -125,8 +145,11 @@ class OpenAIClient:
                 return display_and_summarize_file_content(arguments["filename"], arguments.get("search_path", "/"))
             elif function_name == "search_and_append_to_file":
                 return search_and_append_to_file(arguments["file_name"], arguments["content"], arguments.get("search_path", "/"))
+            elif function_name == "open_file_or_folder":
+                return open_file_or_folder(arguments["target_name"], arguments.get("search_path", "/"))
 
         if hasattr(message, "content") and message.content:
             return message.content
 
         return "I couldn't quite catch that, Master Zack. Could you rephrase?"
+

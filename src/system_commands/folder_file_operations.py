@@ -3,6 +3,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import PyPDF2
 import docx
 import openai
+import subprocess
+import platform
 from config.config import openai_api_key
 
 openai.api_key = openai_api_key
@@ -167,3 +169,31 @@ def search_and_append_to_file(file_name, content, search_path="/"):
         return append_to_file(file_path.split(": ")[1], content)
     else:
         return f"File '{file_name}' not found in the search path."
+
+def open_file_or_folder(target_name, search_path="/"):
+    """
+    Search for a file or folder and open it using the default application.
+    """
+    file_path = search_for_file(target_name, search_path)
+    folder_path = search_for_folder(target_name, search_path)
+
+    if isinstance(file_path, str) and "found" in file_path:
+        path = file_path.split(": ")[1]
+    elif isinstance(folder_path, str) and "found" in folder_path:
+        path = folder_path.split(": ")[1]
+    else:
+        return f"'{target_name}' not found."
+
+    try:
+        system = platform.system()
+        if system == "Windows":
+            subprocess.run(["start", path], shell=True)
+        elif system == "Darwin":  # macOS
+            subprocess.run(["open", path])
+        elif system == "Linux":
+            subprocess.run(["xdg-open", path])
+        else:
+            return "Unsupported operating system."
+        return f"'{target_name}' opened successfully."
+    except Exception as e:
+        return f"Error opening '{target_name}': {e}"
