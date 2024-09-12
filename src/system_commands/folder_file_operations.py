@@ -9,8 +9,6 @@ def resolve_path(path):
         return os.path.join(os.path.expanduser("~"), "Desktop")
     elif path.lower() == "documents":
         return os.path.join(os.path.expanduser("~"), "Documents")
-    elif path.lower() == "downloads":
-        return os.path.join(os.path.expanduser("~"), "Downloads")
     else:
         return os.path.expanduser(path)
 

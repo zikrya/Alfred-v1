@@ -97,9 +97,8 @@ class OpenAIClient:
             }
         ]
 
-        # Send the request to OpenAI with function calling
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": refined_prompt},
                 {"role": "user", "content": prompt}
