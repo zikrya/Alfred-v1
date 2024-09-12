@@ -1,6 +1,6 @@
 import openai
 from config.config import openai_api_key
-from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, display_file_content, search_and_append_to_file
+from src.system_commands.folder_file_operations import create_folder, create_file, list_files_and_folders, search_for_file, search_for_folder, display_and_summarize_file_content, search_and_append_to_file
 import json
 
 class OpenAIClient:
@@ -71,12 +71,12 @@ class OpenAIClient:
                 }
             },
             {
-                "name": "read_file_contents",
-                "description": "Read the contents of a file by searching for its name.",
+                "name": "summarize_file_contents",
+                "description": "Summarize the contents of a file by searching for its name and summarizing the contents.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "filename": {"type": "string", "description": "The name of the file to search for and read."},
+                        "filename": {"type": "string", "description": "The name of the file to search for and summarize."},
                         "search_path": {"type": "string", "description": "The path to start searching in."}
                     },
                     "required": ["filename"]
@@ -121,8 +121,8 @@ class OpenAIClient:
                 return search_for_file(arguments["filename"], arguments.get("search_path", "/"))
             elif function_name == "search_for_folder":
                 return search_for_folder(arguments["foldername"], arguments.get("search_path", "/"))
-            elif function_name == "read_file_contents":
-                return display_file_content(arguments["filename"], arguments.get("search_path", "/"))
+            elif function_name == "summarize_file_contents":
+                return display_and_summarize_file_content(arguments["filename"], arguments.get("search_path", "/"))
             elif function_name == "search_and_append_to_file":
                 return search_and_append_to_file(arguments["file_name"], arguments["content"], arguments.get("search_path", "/"))
 

@@ -2,6 +2,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import PyPDF2
 import docx
+import openai
+from config.config import openai_api_key
+
+openai.api_key = openai_api_key
 
 def resolve_path(path):
     """Resolve the user-specified path or use default system paths for known directories."""
@@ -39,40 +43,66 @@ def list_files_and_folders(path="."):
         return f"Error accessing the directory: {e}"
 
 def read_file_content(file_path):
-    """Read and display file contents based on its type."""
+    """Read and return file contents based on its type."""
     file_extension = os.path.splitext(file_path)[1].lower()
+    content = ""
 
     try:
         if file_extension == ".txt":
-            # Read and display text files
+            # Read text files
             with open(file_path, 'r') as file:
                 content = file.read()
-            print(f"\nContent of {os.path.basename(file_path)} (Text File):\n")
-            print(content)
 
         elif file_extension == ".pdf":
-            # Read and display PDF files
+            # Read PDF files
             with open(file_path, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
-                content = ""
                 for page in reader.pages:
                     content += page.extract_text()
-            print(f"\nContent of {os.path.basename(file_path)} (PDF):\n")
-            print(content)
 
         elif file_extension == ".docx":
-            # Read and display DOCX files
+            # Read DOCX files
             doc = docx.Document(file_path)
             content = "\n".join([para.text for para in doc.paragraphs])
-            print(f"\nContent of {os.path.basename(file_path)} (DOCX):\n")
-            print(content)
 
         else:
-            print(f"Unsupported file format: {file_extension}")
+            return f"Unsupported file format: {file_extension}"
 
     except Exception as e:
-        print(f"Failed to read file: {e}")
+        return f"Failed to read file: {e}"
 
+    return content
+
+def summarize_content(content):
+    """Summarize the file content using OpenAI API."""
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Summarize this content briefly."},
+                {"role": "user", "content": content}
+            ]
+        )
+        summary = response.choices[0].message.content.strip()
+        return summary
+    except Exception as e:
+        return f"Error summarizing content: {e}"
+
+def display_and_summarize_file_content(file_name, root_directory="/"):
+    """Search for a file, read its content, summarize it, and display the summary."""
+    file_path = search_for_file(file_name, root_directory)
+
+    if isinstance(file_path, str) and "found" in file_path:
+        file_path = file_path.split(": ")[1]
+        content = read_file_content(file_path)
+
+        if content:
+            summary = summarize_content(content)
+            print(f"\nSummary of {file_name}:\n{summary}")
+        else:
+            print(f"Could not extract content from {file_name}")
+    else:
+        print(f"{file_name} not found.")
 
 def search_target_scandir(path, target_name):
     """Scan a directory for a file or folder, and return the path if found."""
@@ -81,13 +111,12 @@ def search_target_scandir(path, target_name):
             subdirs = []
             for entry in entries:
                 try:
-                    # Check if entry is a file or directory and matches the target
                     if (entry.is_file() or entry.is_dir()) and entry.name == target_name:
-                        return entry.path  # Target found, return its path
+                        return entry.path
                     elif entry.is_dir(follow_symlinks=False):
                         subdirs.append(entry.path)
                 except (PermissionError, OSError):
-                    continue  # Skip directories with permission issues
+                    continue
             return subdirs
     except (PermissionError, OSError):
         return []
@@ -138,13 +167,3 @@ def search_and_append_to_file(file_name, content, search_path="/"):
         return append_to_file(file_path.split(": ")[1], content)
     else:
         return f"File '{file_name}' not found in the search path."
-
-def display_file_content(file_name, root_directory="/"):
-    """Search for a file and display its content based on file type."""
-    file_path = search_for_file(file_name, root_directory)
-
-    if isinstance(file_path, str) and "found" in file_path:
-        file_path = file_path.split(": ")[1]
-        read_file_content(file_path)
-    else:
-        print(f"{file_name} not found.")
